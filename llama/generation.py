@@ -14,6 +14,59 @@ class LLaMA:
         self.model = model
         self.tokenizer = tokenizer
 
+    def generate_b1_generator(
+        self,
+        prompt: str,
+        max_gen_len: int,
+        temperature: float = 0.8,
+        top_p: float = 0.95,
+        repetition_penalty_range: int = 1024,
+        repetition_penalty_slope: float = 0.7,
+        repetition_penalty: float = 1.15,
+    ) -> str:
+        ''' batch=1, return a token immediately after generation '''
+        params = self.model.params
+
+        # n_prompt * dim
+        prompt_tokens = self.tokenizer.encode(prompt, bos=True, eos=False)
+
+        prompt_size = len(prompt_tokens)
+
+        # total_len = prompt_size + max_gen_len
+        total_len = min(params.max_seq_len, max_gen_len + prompt_size)
+
+        # 1 * n_prompt * dim
+        tokens = torch.full((1, total_len), self.tokenizer.pad_id).cuda().long()
+        tokens[0, :prompt_size] = torch.tensor(prompt_tokens).long()
+
+        start_pos = prompt_size
+        prev_pos = 0
+        for cur_pos in range(start_pos, total_len):
+            logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            if temperature > 0:
+                next_token_scores = apply_top_p(logits, top_p)
+                next_token_scores = apply_temperature(next_token_scores, temperature)
+                next_token_scores = apply_advanced_repetition_penalty(
+                    tokens[:, :cur_pos],
+                    next_token_scores,
+                    repetition_penalty_range,
+                    repetition_penalty_slope,
+                    repetition_penalty,
+                )
+                next_token_scores = torch.nn.functional.softmax(
+                    next_token_scores, dim=-1
+                )
+                next_token = torch.multinomial(
+                    next_token_scores, num_samples=1
+                ).squeeze(1)
+            else:
+                next_token = torch.argmax(logits, dim=-1)
+            next_token = next_token.reshape(-1)
+            tokens[:, cur_pos] = next_token
+            s = self.tokenizer.decode(next_token.tolist())
+            yield s
+
+
     def generate(
         self,
         prompts: List[str],
