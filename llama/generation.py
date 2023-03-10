@@ -36,13 +36,16 @@ class LLaMA:
         total_len = min(params.max_seq_len, max_gen_len + max_prompt_size)
 
         tokens = torch.full((bsz, total_len), self.tokenizer.pad_id).cuda().long()
+        # print('tokens', tokens.shape) # (1, 512)
         for k, t in enumerate(prompt_tokens):
             tokens[k, : len(t)] = torch.tensor(t).long()
         input_text_mask = tokens != self.tokenizer.pad_id
         start_pos = min_prompt_size
         prev_pos = 0
         for cur_pos in range(start_pos, total_len):
+            # print('cur_pos', cur_pos)
             logits = self.model.forward(tokens[:, prev_pos:cur_pos], prev_pos)
+            # print('logits', logits.shape) # (1, 32000)
             if temperature > 0:
                 next_token_scores = apply_top_p(logits, top_p)
                 next_token_scores = apply_temperature(next_token_scores, temperature)
@@ -61,11 +64,13 @@ class LLaMA:
                 ).squeeze(1)
             else:
                 next_token = torch.argmax(logits, dim=-1)
+            # print('next token before', next_token.shape)
             next_token = next_token.reshape(-1)
             # only replace token if prompt has already been generated
             next_token = torch.where(
                 input_text_mask[:, cur_pos], tokens[:, cur_pos], next_token
             )
+            # print('next token', next_token.shape) # (1) (bs)
             tokens[:, cur_pos] = next_token
             prev_pos = cur_pos
 
@@ -78,6 +83,7 @@ class LLaMA:
                 t = t[: t.index(self.tokenizer.eos_id)]
             except ValueError:
                 pass
+            # print('decode input', t.shape)
             decoded.append(self.tokenizer.decode(t))
         return decoded
 
