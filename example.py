@@ -100,29 +100,86 @@ def main(
 ):
     generator = load(ckpt_dir, tokenizer_path, max_seq_len, max_batch_size, use_int8)
 
-    prompts = [
-        # For these prompts, the expected answer is the natural continuation of the prompt
-        """Welcome.
-The following conversation took place at Harvard University.
-Former Treasurer Secretary Larry Summers invited Ray Dalio, the founder, chairman and
-co-CIO of Bridgewater Associates, the world's largest hedge fund, to discuss Dalio's unique
-views on economics.
+    user_identity = 'Person'
+    ai_identity = 'Nahida'
+    end_of_answer = '<end of answer>'
 
-Dalio:""",
-    ]
-    results = generator.generate(
-        prompts,
-        max_gen_len=1024,
-        temperature=temperature,
-        top_p=top_p,
-        repetition_penalty_range=repetition_penalty_range,
-        repetition_penalty_slope=repetition_penalty_slope,
-        repetition_penalty=repetition_penalty,
-    )
+    prompt = f"""
+{ai_identity} is a very friendly and knowledgeable girl, who kindly and politely answers any questions people ask. One day she is having a conversation with someone:
 
-    for result in results:
-        print(result)
-        print("\n==================================\n")
+{user_identity}: What is your name?
+
+{ai_identity}: My name is Nahida. {end_of_answer}
+
+{user_identity}: What kind of knowledge do you have?
+
+{ai_identity}: I know nearly everything, fell free to ask me any questions. {end_of_answer}
+
+{user_identity}: Can I ask you some questions?
+
+{ai_identity}: Sure. {end_of_answer}"""
+
+    times_of_successful_answer = 0
+    while (True):
+        user_input = input('>')
+        prompt += f'\n\n{user_identity}: {user_input}\n\n{ai_identity}:'
+
+        print('===' * 10)
+        print(prompt)
+        print('---' * 10)
+
+        full_ans = ''
+        normal_termination_flag = False
+        for s in generator.generate_b1_generator(
+            prompt,
+            max_gen_len=1024,
+            temperature=temperature,
+            top_p=top_p,
+            repetition_penalty_range=repetition_penalty_range,
+            repetition_penalty_slope=repetition_penalty_slope,
+            repetition_penalty=repetition_penalty,
+            ):
+            # print(s, end=' ')
+            # print(s.pieces[0].piece)
+            # print(ord(s.pieces[0].piece[0]))
+            # print([ord(c) for c in s])
+            #ord=9601
+            raw_str = s.pieces[0].piece
+            raw_str = raw_str.replace(chr(9601), ' ')
+            raw_str = raw_str.replace('<0x0A>', '\n')
+            full_ans += raw_str
+            print(raw_str, end='', flush=True)
+
+            if (full_ans.endswith(end_of_answer)):
+                times_of_successful_answer += 1
+                prompt += full_ans
+                normal_termination_flag = True
+                break
+            if (times_of_successful_answer < 5 and full_ans.endswith('\n\n')):
+                # forgot to add <end of answer>
+                prompt += full_ans[:-2] + end_of_answer
+                break
+            # if (raw_str[0] == chr(9601)):
+            #     print(' ', end='')
+            #     print(raw_str[1:], end='')
+            # else:
+            #     print(raw_str, end='')
+        if (not normal_termination_flag):
+            prompt += full_ans + end_of_answer
+        print()
+    # results = generator.generate(
+    #     prompts,
+    #     max_gen_len=1024,
+    #     temperature=temperature,
+    #     top_p=top_p,
+    #     repetition_penalty_range=repetition_penalty_range,
+    #     repetition_penalty_slope=repetition_penalty_slope,
+    #     repetition_penalty=repetition_penalty,
+    # )
+
+    # for result in results:
+    #     print(result)
+    #     print("\n==================================\n")
 
 
 if __name__ == "__main__":

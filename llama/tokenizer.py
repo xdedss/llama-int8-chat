@@ -37,4 +37,5 @@ class Tokenizer:
         return t
 
     def decode(self, t: List[int]) -> str:
-        return self.sp_model.decode(t)
+        # return self.sp_model.decode(t, out_type='serialized_proto')
+        return self.sp_model.decode(t, out_type='immutable_proto')
