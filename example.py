@@ -124,9 +124,9 @@ def main(
         user_input = input('>')
         prompt += f'\n\n{user_identity}: {user_input}\n\n{ai_identity}:'
 
-        print('===' * 10)
-        print(prompt)
-        print('---' * 10)
+        # print('===' * 10)
+        # print(prompt)
+        # print('---' * 10)
 
         full_ans = ''
         normal_termination_flag = False
