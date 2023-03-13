@@ -1,3 +1,20 @@
+
+Llama chat: 基于llama的聊天模式
+
+通过prompt设计让模型能够用于对话（见example.py）
+
+环境配置方法和和原readme相同，使用时运行
+
+``` python
+python example.py --ckpt_dir xxxx/13B --tokenizer_path xxxx/tokenizer.model
+```
+
+等待加载完后出现`>`字符即可开始输入。
+
+13B模型在单张3090上占用16G显存
+
+**以下是原readme**
+
 # LLaMA: INT8 edition
 
 This is a fork of the LLaMA code that runs LLaMA-13B
